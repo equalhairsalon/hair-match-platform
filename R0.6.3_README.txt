@@ -1,0 +1,11 @@
+R0.6.3 ROOT LAYOUT FIX
+
+Fixes Vercel/Next.js build error:
+request/new/page.tsx doesn't have a root layout
+
+Copy all files in this patch over the current hair-match-platform root, then:
+git add -A
+git commit -m "R0.6.3 restore root layout"
+git push origin main
+
+No Neon SQL or Environment Variable changes are required.
