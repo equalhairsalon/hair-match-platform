@@ -1,11 +1,12 @@
-# R0.2.0 GLASS UI FULL — 2026-08-14
+# R0.4.1 SAFE — GEO / PORTFOLIO / CHAT / CROSS-PLATFORM
 
-本版直接將整體 UI 重構為高級毛玻璃／Glassmorphism 視覺，不再停留在線框或骨架階段。
-
-## 本版重點
-- 全站背景、Header、卡片、表單、按鈕、底部導覽統一毛玻璃視覺。
-- 手機優先重新校正尺寸、圓角、間距、層級與陰影。
-- 字體改為 Apple / macOS / iOS 優先的 SF Pro + PingFang TC 字體堆疊；Windows/Android 提供 Noto Sans TC / 微軟正黑體 fallback。
-- 首頁、附近探索、發布需求、顧客報價頁、設計師工作台、報價編輯頁完整視覺統一。
-- 保留既有媒合 Demo 邏輯與 localStorage 發布需求流程。
-- 保留 Neon/PostgreSQL、Vercel Blob、PWA 與後續登入／金流擴充架構。
+- GPS 真實距離：顧客可發布座標與媒合半徑；設計師店家保存座標與接案半徑；工作台依公里數篩選、附近設計師依距離排序。
+- 設計師作品與價目：作品集、服務項目、服務說明、價格區間、預估時間正式寫入 Neon。
+- 報價可直接勾選最多 5 張相關作品，顧客報價卡直接看到。
+- 顧客收到報價後可「先聊聊」；Conversation / Messages 真實走 Neon，支援 5 秒輪詢同步與未讀數。
+- 報價與成交會建立 notifications 紀錄，後續可直接接 Web Push / App Push。
+- PWA 跨平台：manifest、service worker、iOS apple-touch-icon、Android maskable icon、safe-area、44px 觸控尺寸、16px 手機表單字級。
+- 顧客照片改為「直接拍照 / 從相簿選擇」，iPhone Safari 與 Android Chrome 共用。
+- 新增 push_subscriptions schema，為後續 iOS PWA / Android Web Push 與原生 App notification 預留。
+- 修正 CSS autoprefixer `start` warning，改用 `flex-start`。
+- API-first：/api/providers 與 /api/demands?scope=open 均可回傳 GPS 距離，後續 iOS / Android 原生 App 共用同一 API。

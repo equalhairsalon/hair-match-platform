@@ -30,7 +30,7 @@ export interface Provider {
   rating: number;
   reviews: number;
   completed: number;
-  distanceKm: number;
+  distanceKm: number | null;
   availableText: string;
   isAvailableNow: boolean;
   location: string;

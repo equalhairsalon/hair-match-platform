@@ -1,0 +1,19 @@
+Hair Match Platform R0.4.1 SAFE PATCH
+
+Purpose:
+- Apply directly on top of the last successfully deployed R0.2 repository.
+- This package includes BOTH the missing R0.3 real-data files and the R0.4 geo/chat/PWA files.
+- No files need to be deleted.
+
+Recommended update method:
+1. Stop npm run dev with Ctrl+C.
+2. Unzip this package.
+3. Copy ALL contents inside this package into the ROOT of your local hair-match-platform repository and replace existing files.
+4. Run: npm install
+5. Run: npm run dev
+6. If local site opens correctly, run:
+   git add -A
+   git commit -m "R0.4.1 safe full update from R0.2"
+   git push
+
+Do NOT upload the old R0.4 incremental PATCH directly onto an R0.2 GitHub repository, because it assumes R0.3 was already present.

@@ -1,40 +1,36 @@
-# 髮媒 HAIR MATCH — R0.2 GLASS UI FULL
+# Hair Match Platform — R0.4 GEO / PORTFOLIO / CHAT / CROSS-PLATFORM
 
-手機優先的「顧客即時需求 ↔ 附近髮型設計師／髮廊」媒合平台。
+Cloud-first 的美髮即時需求媒合平台。Web/PWA 先行，iPhone Safari 與 Android Chrome 同步驗收；未來原生 iOS / Android 共用同一套 API、Neon 資料庫與媒合邏輯。
 
-## R0.2 視覺升級
-- 全站改為 Premium Glassmorphism：透明毛玻璃、柔霧背景、內高光、層次陰影。
-- 字體優先使用 SF Pro / PingFang TC，並配置 Noto Sans TC / Microsoft JhengHei fallback。
-- 手機版底部導覽、表單、報價卡、設計師卡與工作台全面重整。
-- 視覺目標：Web 版即具備接近 App Store 正式產品的完成度，之後可直接延伸 PWA / iOS App。
+## R0.4 已完成
 
-## 核心流程
-- 顧客首頁與「附近現在有空」探索
-- 顧客發布需求：項目、時間、預算、位置、瀏覽器定位、髮長、補充說明、照片介面
-- 顧客需求單：收集多份設計師方案、比價、作品、時段、選擇設計師
-- 設計師公開檔案：作品、專長、價格、評價、可服務狀態
-- 設計師工作台：附近需求牆、營業／接案狀態、媒合數據
-- 設計師提出方案：價格、可服務時間、說明、附相關作品
-- 平台 Admin：店家／設計師審核、Pilot 數據、風控入口
-- PWA manifest、Web Geolocation、Vercel Blob upload API、Neon/PostgreSQL schema
-- `/api/health` 健康檢查
+- 顧客 / 設計師 Email 密碼帳號與 HttpOnly JWT session。
+- Neon 真實資料：需求、報價、預約、作品、價目、聊天、通知紀錄。
+- 顧客 GPS、媒合半徑與髮況照片。
+- 設計師店家 GPS、接案半徑、附近需求真實距離排序。
+- 附近設計師 API 可接受 lat/lng/radius，方便未來原生 App 直接使用。
+- 設計師作品集與公開價目表管理。
+- 報價可附最多 5 張相關作品。
+- 顧客收到報價後可「先聊聊」，訊息寫入 Neon 並在不同裝置同步。
+- PWA manifest / service worker / iOS icon / Android maskable icon / safe-area / 觸控尺寸。
+- iPhone / Android 分開提供「直接拍照」與「從相簿選擇」。
+- notifications 與 push_subscriptions schema 已預留，下一階段可直接接 Web Push / APNs / FCM。
 
-## Demo 模式
-未設定 DATABASE_URL 時，前台以 Demo 資料與 localStorage 跑流程，可以立即看 UI、發布需求與測試媒合畫面。
+## 正式架構
 
-## 本機啟動
-```bash
-npm install
-npm run dev
-```
-打開 `http://localhost:3000`
+- GitHub：程式碼 source of truth
+- Vercel：Production Web / API
+- Neon PostgreSQL：會員、設計師、店家、需求、報價、預約、聊天等主要資料
+- Vercel Blob：顧客髮況照、設計師作品與店家照片
+- PWA：現階段手機主畫面使用
+- Native apps：成熟後上 iOS App Store，並保留 Android / Google Play 共用後端
 
-## 正式上線需要的環境
-1. GitHub repository
-2. Vercel project
-3. Neon PostgreSQL 並執行 `database/schema.sql`
-4. Vercel Blob 儲存作品與顧客髮況照片
-5. 正式登入：手機 OTP / LINE Login / Apple Sign in
-6. 設計師 Pro 訂閱金流
-7. Google Maps / Mapbox
-8. Web Push / LINE 通知
+## R0.4 升級
+
+1. Neon SQL Editor 執行 `database/R0.4_MIGRATION.sql`。
+2. Vercel Storage 新增 Vercel Blob 並 Connect 到 `hair-match-platform`，確認環境變數出現 `BLOB_READ_WRITE_TOKEN`。
+3. 本機 `npm install && npm run dev`。
+4. 手機完整 GPS / 相機測試以 `https://hair-match-platform.vercel.app` 為準。
+5. `git add . && git commit -m "R0.4 geo portfolio chat cross-platform" && git push`。
+
+詳細步驟見 `R0.4_GO_LIVE.md`。
