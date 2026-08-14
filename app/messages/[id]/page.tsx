@@ -1,0 +1,16 @@
+'use client';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Send } from 'lucide-react';
+import { Header, MobileNav } from '@/components/Header';
+
+type Msg={id:string;body:string;image_url:string|null;sender_user_id:string;sender_name:string;sender_avatar:string|null;created_at:string};
+export default function ConversationPage({params}:{params:Promise<{id:string}>}){
+ const router=useRouter();const [id,setId]=useState('');const [messages,setMessages]=useState<Msg[]>([]);const [me,setMe]=useState('');const [title,setTitle]=useState('對話');const [subtitle,setSubtitle]=useState('');const [body,setBody]=useState('');const [busy,setBusy]=useState(false);const [error,setError]=useState('');const bottom=useRef<HTMLDivElement|null>(null);
+ async function load(cid:string,quiet=false){try{const r=await fetch(`/api/conversations/${cid}/messages`,{cache:'no-store'});if(r.status===401){router.push(`/auth?next=/messages/${cid}`);return}const j=await r.json();if(!r.ok)throw new Error(j.message||'讀取失敗');setMessages(j.messages||[]);setMe(j.currentUserId);const c=j.conversation;setTitle(j.currentUserId===c.customer_user_id?c.designer_name:c.customer_name);setSubtitle(c.service_label||'媒合需求');if(!quiet)setTimeout(()=>bottom.current?.scrollIntoView({behavior:'smooth'}),80)}catch(e:any){setError(e.message)}}
+ useEffect(()=>{let timer:ReturnType<typeof setInterval>|undefined;params.then(p=>{setId(p.id);load(p.id);timer=setInterval(()=>load(p.id,true),5000)});return()=>{if(timer)clearInterval(timer)}},[params]);
+ useEffect(()=>{bottom.current?.scrollIntoView({behavior:'smooth'})},[messages.length]);
+ async function submit(e:FormEvent){e.preventDefault();if(!body.trim()||!id)return;setBusy(true);setError('');try{const r=await fetch(`/api/conversations/${id}/messages`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({body})});const j=await r.json();if(!r.ok)throw new Error(j.message||'傳送失敗');setBody('');await load(id,true)}catch(e:any){setError(e.message)}finally{setBusy(false)}}
+ return <div className="app-shell"><Header/><main className="container chat-page"><div className="chat-shell"><div className="chat-head"><Link className="btn icon-btn" href="/messages"><ArrowLeft size={18}/></Link><div><div className="name">{title}</div><div className="small">{subtitle} · 雲端同步</div></div></div><div className="chat-stream">{messages.length===0&&<div className="empty-state"><p className="muted">先傳一則訊息確認髮況、時間或方案細節。</p></div>}{messages.map(m=><div className={`chat-bubble-wrap ${m.sender_user_id===me?'mine':''}`} key={m.id}><div className="chat-bubble"><div>{m.body}</div>{m.image_url&&<img src={m.image_url} alt="對話圖片"/>}<div className="chat-time">{new Date(m.created_at).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div></div>)}<div ref={bottom}/></div>{error&&<div className="form-error">{error}</div>}<form className="chat-compose" onSubmit={submit}><input className="input" value={body} onChange={e=>setBody(e.target.value)} maxLength={1200} placeholder="輸入訊息…" enterKeyHint="send"/><button className="btn btn-primary icon-btn" disabled={busy||!body.trim()} aria-label="傳送"><Send size={18}/></button></form></div></main><MobileNav/></div>
+}

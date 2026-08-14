@@ -1,3 +1,5 @@
+# Hair Match Platform — R0.6.7 Verified Stable Checkpoint
+
 # 美業媒合平台 — R0.6
 
 Cloud-first beauty service marketplace built with Next.js + Vercel + Neon PostgreSQL.

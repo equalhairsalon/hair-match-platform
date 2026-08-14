@@ -1,0 +1,6 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { getSession } from '@/lib/auth';
+import { transaction } from '@/lib/server-db';
+const schema=z.object({userId:z.string().uuid(),action:z.enum(['suspend','activate'])});
+export async function POST(req:Request){const a=await getSession();if(a?.role!=='admin')return NextResponse.json({ok:false,message:'僅限平台管理員'},{status:403});try{const i=schema.parse(await req.json());if(i.userId===a.id)return NextResponse.json({ok:false,message:'不能停權目前登入的最高管理帳號'},{status:400});await transaction(async c=>{const target=await c.query(`select role,display_name from users where id=$1`,[i.userId]);if(!target.rows[0])throw new Error('找不到帳號');if(target.rows[0].role==='admin')throw new Error('管理員帳號需由最高權限另行處理');const status=i.action==='suspend'?'suspended':'active';await c.query(`update users set account_status=$2::account_status,updated_at=now() where id=$1`,[i.userId,status]);await c.query(`insert into admin_audit_logs(admin_user_id,action,target_type,target_id,detail) values($1,$2,'account',$3,jsonb_build_object('status',$4,'name',$5))`,[a.id,i.action,i.userId,status,target.rows[0].display_name])});return NextResponse.json({ok:true})}catch(e:any){return NextResponse.json({ok:false,message:e?.issues?.[0]?.message||e?.message||'帳號操作失敗'},{status:400})}}

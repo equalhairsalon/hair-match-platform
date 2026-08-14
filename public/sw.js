@@ -1,4 +1,4 @@
-const CACHE='beauty-match-shell-v061';
+const CACHE='beauty-match-shell-v067';
 self.addEventListener('install',event=>{
   self.skipWaiting();
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(['/manifest.webmanifest']).catch(()=>{})));
@@ -16,6 +16,6 @@ self.addEventListener('fetch',event=>{
   if(event.request.mode==='navigate'){
     // Network only for pages while online. This prevents an old home page from
     // surviving after a production deployment. PWA shell is still installable.
-    event.respondWith(fetch(event.request,{cache:'no-store'}));
+    event.respondWith(fetch(event.request,{cache:'no-store'}).catch(()=>new Response('Offline',{status:503,headers:{'content-type':'text/plain; charset=utf-8'}})));
   }
 });

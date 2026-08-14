@@ -1,0 +1,3 @@
+import { NextResponse } from 'next/server';
+import { query } from '@/lib/server-db';
+export async function GET(){try{const r=await query(`select sc.key,sc.label,sc.description,json_agg(json_build_object('key',i.key,'label',i.label) order by i.sort_order) filter(where i.id is not null and i.is_active=true) items from service_categories sc left join service_catalog_items i on i.category_id=sc.id where sc.is_active=true group by sc.id order by sc.sort_order`);return NextResponse.json({ok:true,categories:r.rows})}catch(e:any){return NextResponse.json({ok:false,message:e?.message||'分類讀取失敗'},{status:500})}}
