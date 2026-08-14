@@ -1,8 +1,10 @@
-export type ServiceKey = 'wash'|'cut'|'color'|'perm'|'care'|'style';
+export type ServiceKey = string;
+export type ServiceCategoryKey = 'hair'|'nails'|'lashes'|'beauty'|string;
 export type DemandStatus = 'collecting'|'matched'|'booked'|'closed';
 
 export interface Demand {
   id: string;
+  categoryKey?: ServiceCategoryKey;
   service: ServiceKey;
   serviceLabel: string;
   when: 'now'|'scheduled';
@@ -13,7 +15,7 @@ export interface Demand {
   lat?: number;
   lng?: number;
   notes: string;
-  hairLength: string;
+  hairLength?: string;
   styleTags: string[];
   photoUrls: string[];
   quoteCount: number;
@@ -25,6 +27,7 @@ export interface Provider {
   id: string;
   name: string;
   salon: string;
+  organization?: string;
   avatar: string;
   cover: string;
   rating: number;
@@ -35,6 +38,8 @@ export interface Provider {
   isAvailableNow: boolean;
   location: string;
   specialties: string[];
+  categoryKeys?: string[];
+  categoryLabels?: string[];
   intro: string;
   instagram: string;
   works: string[];

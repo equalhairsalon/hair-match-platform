@@ -1,50 +1,5 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { getSession } from '@/lib/auth';
-import { query, transaction } from '@/lib/server-db';
-
-const schema=z.object({
-  salonName:z.string().min(1).max(100),
-  address:z.string().min(2).max(250),
-  bio:z.string().max(1000).default(''),
-  yearsExperience:z.number().int().min(0).max(80),
-  specialties:z.array(z.string()).max(12),
-  radiusKm:z.number().min(.5).max(50),
-  isAcceptingNow:z.boolean().default(true),
-  instagram:z.string().max(120).optional().default(''),
-  lat:z.number().min(-90).max(90).nullable().optional(),
-  lng:z.number().min(-180).max(180).nullable().optional(),
-  avatarUrl:z.string().url().nullable().optional(),
-  coverUrl:z.string().url().nullable().optional(),
-});
-
+import { NextResponse } from 'next/server';import { z } from 'zod';import { getSession } from '@/lib/auth';import { query, transaction } from '@/lib/server-db';
+const schema=z.object({organizationName:z.string().min(1).max(100),providerKind:z.enum(['individual','organization_owner','organization_staff']).default('individual'),address:z.string().min(2).max(250),bio:z.string().max(1000).default(''),yearsExperience:z.number().int().min(0).max(80),specialties:z.array(z.string()).max(20),categoryKeys:z.array(z.enum(['hair','nails','lashes','beauty'])).min(1).max(4),radiusKm:z.number().min(.5).max(50),isAcceptingNow:z.boolean().default(true),instagram:z.string().max(120).optional().default(''),lat:z.number().min(-90).max(90).nullable().optional(),lng:z.number().min(-180).max(180).nullable().optional(),avatarUrl:z.string().url().nullable().optional(),coverUrl:z.string().url().nullable().optional()});
 function canManage(role:string){return ['designer','salon_owner','admin'].includes(role)}
-
-export async function GET(){
-  const session=await getSession();
-  if(!session || !canManage(session.role)) return NextResponse.json({ok:false,message:'請使用設計師帳號登入'},{status:403});
-  const r=await query(`select u.id,u.display_name,u.avatar_url,dp.bio,dp.years_experience,dp.specialties,dp.service_radius_km,dp.is_accepting_now,dp.onboarding_completed,
-    coalesce(s.name,'') salon_name,coalesce(s.address,'') address,coalesce(s.instagram,'') instagram,s.lat,s.lng,s.cover_url
-    from users u join designer_profiles dp on dp.user_id=u.id left join salons s on s.id=dp.salon_id where u.id=$1 limit 1`,[session.id]);
-  return NextResponse.json({ok:true,profile:r.rows[0]||null});
-}
-
-export async function POST(req:Request){
-  const session=await getSession();if(!session || !canManage(session.role)) return NextResponse.json({ok:false,message:'請使用設計師帳號登入'},{status:403});
-  try{
-    const i=schema.parse(await req.json());
-    await transaction(async c=>{
-      const existing=await c.query(`select salon_id from designer_profiles where user_id=$1`,[session.id]); let salonId=existing.rows[0]?.salon_id as string|undefined;
-      if(!salonId){
-        const s=await c.query(`insert into salons(owner_user_id,name,address,instagram,lat,lng,cover_url) values($1,$2,$3,$4,$5,$6,$7) returning id`,[session.id,i.salonName,i.address,i.instagram,i.lat??null,i.lng??null,i.coverUrl??null]);
-        salonId=s.rows[0].id;
-      } else {
-        await c.query(`update salons set name=$2,address=$3,instagram=$4,lat=$5,lng=$6,cover_url=coalesce($7,cover_url),updated_at=now() where id=$1`,[salonId,i.salonName,i.address,i.instagram,i.lat??null,i.lng??null,i.coverUrl??null]);
-      }
-      await c.query(`update users set avatar_url=coalesce($2,avatar_url),updated_at=now() where id=$1`,[session.id,i.avatarUrl??null]);
-      await c.query(`insert into designer_profiles(user_id,salon_id,bio,years_experience,specialties,service_radius_km,is_accepting_now,onboarding_completed) values($1,$2,$3,$4,$5,$6,$7,true)
-        on conflict(user_id) do update set salon_id=excluded.salon_id,bio=excluded.bio,years_experience=excluded.years_experience,specialties=excluded.specialties,service_radius_km=excluded.service_radius_km,is_accepting_now=excluded.is_accepting_now,onboarding_completed=true,updated_at=now()`,[session.id,salonId,i.bio,i.yearsExperience,i.specialties,i.radiusKm,i.isAcceptingNow]);
-    });
-    return NextResponse.json({ok:true});
-  }catch(error:any){return NextResponse.json({ok:false,message:error?.issues?.[0]?.message||error?.message||'儲存失敗'},{status:400})}
-}
+export async function GET(){const s=await getSession();if(!s||!canManage(s.role))return NextResponse.json({ok:false,message:'請使用服務者帳號登入'},{status:403});const r=await query(`select u.id,u.display_name,u.avatar_url,dp.bio,dp.years_experience,dp.specialties,dp.service_radius_km,dp.is_accepting_now,dp.onboarding_completed,dp.approval_status,dp.approval_note,dp.submitted_at,dp.provider_kind,dp.organization_id,coalesce(o.name,'') organization_name,coalesce(o.address,'') address,coalesce(o.instagram,'') instagram,o.lat,o.lng,o.cover_url,coalesce(array_agg(distinct sc.key) filter(where sc.key is not null),'{}') category_keys from users u join designer_profiles dp on dp.user_id=u.id left join organizations o on o.id=dp.organization_id left join provider_categories pc on pc.user_id=u.id left join service_categories sc on sc.id=pc.category_id where u.id=$1 group by u.id,dp.user_id,o.id limit 1`,[s.id]);return NextResponse.json({ok:true,profile:r.rows[0]||null})}
+export async function POST(req:Request){const s=await getSession();if(!s||!canManage(s.role))return NextResponse.json({ok:false,message:'請使用服務者帳號登入'},{status:403});try{const i=schema.parse(await req.json());await transaction(async c=>{const existing=await c.query(`select organization_id,salon_id,approval_status from designer_profiles where user_id=$1 for update`,[s.id]);let orgId=existing.rows[0]?.organization_id||existing.rows[0]?.salon_id as string|undefined;if(!orgId){const o=await c.query(`insert into organizations(owner_user_id,name,organization_type,address,lat,lng,instagram,cover_url,status) values($1,$2,$3,$4,$5,$6,$7,$8,'active') returning id`,[s.id,i.organizationName,i.providerKind==='individual'?'individual':'studio',i.address,i.lat??null,i.lng??null,i.instagram,i.coverUrl??null]);orgId=o.rows[0].id;await c.query(`insert into salons(id,owner_user_id,name,address,instagram,lat,lng,cover_url,organization_id) values($1,$2,$3,$4,$5,$6,$7,$8,$1) on conflict(id) do nothing`,[orgId,s.id,i.organizationName,i.address,i.instagram,i.lat??null,i.lng??null,i.coverUrl??null])}else{await c.query(`update organizations set name=$2,organization_type=$3,address=$4,lat=$5,lng=$6,instagram=$7,cover_url=coalesce($8,cover_url),updated_at=now() where id=$1`,[orgId,i.organizationName,i.providerKind==='individual'?'individual':'studio',i.address,i.lat??null,i.lng??null,i.instagram,i.coverUrl??null]);await c.query(`insert into salons(id,owner_user_id,name,address,instagram,lat,lng,cover_url,organization_id) values($1,$2,$3,$4,$5,$6,$7,$8,$1) on conflict(id) do update set name=excluded.name,address=excluded.address,instagram=excluded.instagram,lat=excluded.lat,lng=excluded.lng,cover_url=coalesce(excluded.cover_url,salons.cover_url),organization_id=$1,updated_at=now()`,[orgId,s.id,i.organizationName,i.address,i.instagram,i.lat??null,i.lng??null,i.coverUrl??null])}await c.query(`insert into organization_memberships(organization_id,user_id,membership_role,status) values($1,$2,$3,'active') on conflict(organization_id,user_id) do update set membership_role=excluded.membership_role,status='active'`,[orgId,s.id,i.providerKind==='organization_staff'?'provider':'owner']);await c.query(`update users set avatar_url=coalesce($2,avatar_url),updated_at=now() where id=$1`,[s.id,i.avatarUrl??null]);const wasApproved=existing.rows[0]?.approval_status==='approved';await c.query(`insert into designer_profiles(user_id,salon_id,organization_id,provider_kind,bio,years_experience,specialties,service_radius_km,is_accepting_now,onboarding_completed,approval_status,submitted_at,primary_category_key) values($1,$2,$2,$3,$4,$5,$6,$7,$8,true,'pending',now(),$9) on conflict(user_id) do update set salon_id=$2,organization_id=$2,provider_kind=$3,bio=$4,years_experience=$5,specialties=$6,service_radius_km=$7,is_accepting_now=$8,onboarding_completed=true,approval_status=case when designer_profiles.approval_status='approved' then 'approved'::designer_approval_status else 'pending'::designer_approval_status end,submitted_at=case when designer_profiles.approval_status='approved' then designer_profiles.submitted_at else now() end,primary_category_key=$9,updated_at=now()`,[s.id,orgId,i.providerKind,i.bio,i.yearsExperience,i.specialties,i.radiusKm,i.isAcceptingNow,i.categoryKeys[0]]);await c.query(`delete from provider_categories where user_id=$1`,[s.id]);for(let n=0;n<i.categoryKeys.length;n++)await c.query(`insert into provider_categories(user_id,category_id,is_primary) select $1,id,$3 from service_categories where key=$2 on conflict(user_id,category_id) do update set is_primary=excluded.is_primary`,[s.id,i.categoryKeys[n],n===0]);await c.query(`insert into provider_applications(user_id,organization_id,application_status,submitted_at,completeness_score,updated_at) values($1,$2,$3,now(),75,now()) on conflict(user_id) do update set organization_id=$2,application_status=case when provider_applications.application_status='approved' then 'approved' else 'pending' end,submitted_at=case when provider_applications.application_status='approved' then provider_applications.submitted_at else now() end,completeness_score=75,updated_at=now()`,[s.id,orgId,wasApproved?'approved':'pending']);await c.query(`update subscriptions set organization_id=coalesce(organization_id,$2),updated_at=now() where user_id=$1`,[s.id,orgId])});return NextResponse.json({ok:true})}catch(e:any){return NextResponse.json({ok:false,message:e?.issues?.[0]?.message||e?.message||'儲存失敗'},{status:400})}}

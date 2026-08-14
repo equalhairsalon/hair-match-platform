@@ -4,7 +4,7 @@ import { BRAND } from '@/lib/brand';
 import { PwaRegister } from '@/components/PwaRegister';
 
 export const metadata: Metadata = {
-  title: `${BRAND.name}｜美髮即時需求媒合平台`,
+  title: `${BRAND.name}｜美業即時需求媒合平台`,
   description: BRAND.description,
   manifest: '/manifest.webmanifest',
   applicationName: BRAND.name,

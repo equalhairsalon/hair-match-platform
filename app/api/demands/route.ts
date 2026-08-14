@@ -1,41 +1,4 @@
-import { NextResponse } from 'next/server';
-import { z } from 'zod';
-import { getSession } from '@/lib/auth';
-import { query } from '@/lib/server-db';
-
-const createSchema=z.object({serviceKey:z.string().min(1),serviceLabel:z.string().min(1),when:z.enum(['now','scheduled']),desiredStart:z.string().nullable().optional(),budgetMin:z.number().int().nonnegative(),budgetMax:z.number().int().nonnegative(),locationText:z.string().min(2),lat:z.number().nullable().optional(),lng:z.number().nullable().optional(),hairLength:z.string().optional().default(''),notes:z.string().max(1200).optional().default(''),photoUrls:z.array(z.string().url()).max(6).optional().default([]),maxRadiusKm:z.number().min(.5).max(50).optional().default(5)});
-
-export async function GET(req:Request){
-  const session=await getSession();
-  if(!session) return NextResponse.json({ok:false,message:'請先登入'},{status:401});
-  const url=new URL(req.url);const scope=url.searchParams.get('scope')||'mine';
-  if(scope==='open' && ['designer','salon_owner','admin'].includes(session.role)){
-    const prof=await query(`select dp.service_radius_km,s.lat,s.lng from designer_profiles dp left join salons s on s.id=dp.salon_id where dp.user_id=$1`,[session.id]);
-    const p:any=prof.rows[0];const hasGeo=Number.isFinite(Number(p?.lat))&&Number.isFinite(Number(p?.lng));
-    if(hasGeo){
-      const rows=await query(`select * from (select d.*,u.display_name customer_name,(select count(*)::int from quotes q where q.demand_id=d.id) quote_count,
-        case when d.lat is not null and d.lng is not null then round((6371 * acos(least(1,greatest(-1, sin(radians($1::double precision))*sin(radians(d.lat)) + cos(radians($1::double precision))*cos(radians(d.lat))*cos(radians(d.lng)-radians($2::double precision))))))::numeric,1) else null end distance_km
-        from demands d left join users u on u.id=d.customer_user_id where d.status='collecting' and (d.expires_at is null or d.expires_at>now())) x
-        where x.distance_km is null or x.distance_km <= least($3::numeric,coalesce(x.max_radius_km,$3::numeric)) order by x.distance_km asc nulls last,x.created_at desc limit 100`,[Number(p.lat),Number(p.lng),Number(p.service_radius_km||5)]);
-      return NextResponse.json({ok:true,demands:rows.rows,geoApplied:true});
-    }
-    const rows=await query(`select d.*,u.display_name customer_name,(select count(*)::int from quotes q where q.demand_id=d.id) quote_count,null::numeric distance_km from demands d left join users u on u.id=d.customer_user_id where d.status='collecting' and (d.expires_at is null or d.expires_at>now()) order by d.created_at desc limit 100`);
-    return NextResponse.json({ok:true,demands:rows.rows,geoApplied:false});
-  }
-  const rows=await query(`select d.*,(select count(*)::int from quotes q where q.demand_id=d.id) quote_count from demands d where d.customer_user_id=$1 order by d.created_at desc limit 100`,[session.id]);
-  return NextResponse.json({ok:true,demands:rows.rows});
-}
-
-export async function POST(req:Request){
-  const session=await getSession();
-  if(!session) return NextResponse.json({ok:false,code:'AUTH_REQUIRED',message:'發布需求前請先登入。'},{status:401});
-  if(session.role!=='customer' && session.role!=='admin') return NextResponse.json({ok:false,message:'目前帳號不是顧客身分。'},{status:403});
-  try{
-    const i=createSchema.parse(await req.json());
-    const desired=i.when==='now'?new Date().toISOString():i.desiredStart||null;
-    const result=await query<{id:string}>(`insert into demands(customer_user_id,service_key,service_label,desired_start,budget_min,budget_max,location_text,lat,lng,max_radius_km,hair_length,notes,expires_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,now()+interval '24 hours') returning id`,[session.id,i.serviceKey,i.serviceLabel,desired,i.budgetMin,i.budgetMax,i.locationText,i.lat??null,i.lng??null,i.maxRadiusKm,i.hairLength,i.notes]);
-    const id=result.rows[0].id;
-    for(let n=0;n<i.photoUrls.length;n++) await query(`insert into demand_photos(demand_id,image_url,sort_order) values($1,$2,$3)`,[id,i.photoUrls[n],n]);
-    return NextResponse.json({ok:true,id},{status:201});
-  }catch(error:any){return NextResponse.json({ok:false,message:error?.issues?.[0]?.message||error?.message||'發布失敗'},{status:400})}
-}
+import { NextResponse } from 'next/server';import { z } from 'zod';import { getSession } from '@/lib/auth';import { query } from '@/lib/server-db';
+const createSchema=z.object({categoryKey:z.string().min(1).max(40),serviceItemKey:z.string().min(1).max(80),serviceKey:z.string().min(1),serviceLabel:z.string().min(1),when:z.enum(['now','scheduled']),desiredStart:z.string().nullable().optional(),budgetMin:z.number().int().nonnegative(),budgetMax:z.number().int().nonnegative(),locationText:z.string().min(2),lat:z.number().nullable().optional(),lng:z.number().nullable().optional(),conditionText:z.string().max(300).optional().default(''),notes:z.string().max(1200).optional().default(''),photoUrls:z.array(z.string().url()).max(6).optional().default([]),maxRadiusKm:z.number().min(.5).max(50).optional().default(5)});
+export async function GET(req:Request){const session=await getSession();if(!session)return NextResponse.json({ok:false,message:'請先登入'},{status:401});const url=new URL(req.url);const scope=url.searchParams.get('scope')||'mine';if(scope==='open'&&['designer','salon_owner','admin'].includes(session.role)){const prof=await query(`select dp.service_radius_km,dp.approval_status,o.lat,o.lng,coalesce(array_agg(sc.key) filter(where sc.key is not null),'{}') category_keys from designer_profiles dp left join organizations o on o.id=dp.organization_id left join provider_categories pc on pc.user_id=dp.user_id left join service_categories sc on sc.id=pc.category_id where dp.user_id=$1 group by dp.user_id,o.lat,o.lng`,[session.id]);const p:any=prof.rows[0];if(!p||(session.role!=='admin'&&p.approval_status!=='approved'))return NextResponse.json({ok:false,message:'帳號尚未通過平台審核。'},{status:403});const hasGeo=Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lng));const cats=(p.category_keys||[]) as string[];const params:any[]=[cats];let geo='null::numeric distance_km';let where=`d.status='collecting' and (d.expires_at is null or d.expires_at>now()) and (d.category_key=any($1::text[]) or cardinality($1::text[])=0)`;if(hasGeo){params.push(Number(p.lat),Number(p.lng),Number(p.service_radius_km||5));geo=`case when d.lat is not null and d.lng is not null then round((6371 * acos(least(1,greatest(-1, sin(radians($2::double precision))*sin(radians(d.lat)) + cos(radians($2::double precision))*cos(radians(d.lat))*cos(radians(d.lng)-radians($3::double precision))))))::numeric,1) else null end distance_km`;}const r=await query(`select d.*,u.display_name customer_name,(select count(*)::int from quotes q where q.demand_id=d.id) quote_count,${geo} from demands d left join users u on u.id=d.customer_user_id where ${where} order by ${hasGeo?'distance_km asc nulls last,':''}d.created_at desc limit 100`,params);const rows=hasGeo?r.rows.filter((x:any)=>x.distance_km==null||Number(x.distance_km)<=Number(p.service_radius_km||5)):r.rows;return NextResponse.json({ok:true,demands:rows,geoApplied:hasGeo})}const rows=await query(`select d.*,(select count(*)::int from quotes q where q.demand_id=d.id) quote_count from demands d where d.customer_user_id=$1 order by d.created_at desc limit 100`,[session.id]);return NextResponse.json({ok:true,demands:rows.rows})}
+export async function POST(req:Request){const session=await getSession();if(!session)return NextResponse.json({ok:false,code:'AUTH_REQUIRED',message:'發布需求前請先登入。'},{status:401});if(session.role!=='customer'&&session.role!=='admin')return NextResponse.json({ok:false,message:'目前帳號不是顧客身分。'},{status:403});try{const i=createSchema.parse(await req.json());const valid=await query(`select i.key,i.label,sc.key category_key from service_catalog_items i join service_categories sc on sc.id=i.category_id where sc.key=$1 and i.key=$2 and sc.is_active=true and i.is_active=true limit 1`,[i.categoryKey,i.serviceItemKey]);if(!valid.rows[0])return NextResponse.json({ok:false,message:'此服務類別或項目目前未開放。'},{status:400});const desired=i.when==='now'?new Date().toISOString():i.desiredStart||null;const result=await query<{id:string}>(`insert into demands(customer_user_id,category_key,service_item_key,service_key,service_label,desired_start,budget_min,budget_max,location_text,lat,lng,max_radius_km,condition_text,notes,expires_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,now()+interval '24 hours') returning id`,[session.id,i.categoryKey,i.serviceItemKey,i.serviceKey,i.serviceLabel,desired,i.budgetMin,i.budgetMax,i.locationText,i.lat??null,i.lng??null,i.maxRadiusKm,i.conditionText,i.notes]);const id=result.rows[0].id;for(let n=0;n<i.photoUrls.length;n++)await query(`insert into demand_photos(demand_id,image_url,sort_order) values($1,$2,$3)`,[id,i.photoUrls[n],n]);return NextResponse.json({ok:true,id},{status:201})}catch(e:any){return NextResponse.json({ok:false,message:e?.issues?.[0]?.message||e?.message||'發布失敗'},{status:400})}}

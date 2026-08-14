@@ -1,0 +1,12 @@
+R0.5.0 PATCH
+
+基準：目前已成功部署的 R0.4.3。
+
+1. 將 PATCH 內容覆蓋到 hair-match-platform 根目錄。
+2. Neon Query 執行 database/R0.5_MIGRATION.sql。
+3. git add -A
+4. git commit -m "R0.5 pilot recruitment ready"
+5. git push origin main
+6. Vercel 等待 Ready。
+
+首次進 /admin：先註冊自己的帳號，再依 R0.5_GO_LIVE.md 將該帳號 role 設成 admin，登出後重新登入。

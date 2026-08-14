@@ -139,3 +139,27 @@ create index if not exists idx_services_designer_active on service_items(designe
 create index if not exists idx_conversations_customer_updated on conversations(customer_user_id,updated_at desc);
 create index if not exists idx_conversations_designer_updated on conversations(designer_user_id,updated_at desc);
 create index if not exists idx_notifications_user_unread on notifications(user_id,read_at,created_at desc);
+
+-- R0.5 pilot approval / moderation additions
+do $$ begin create type account_status as enum ('active','suspended','deleted'); exception when duplicate_object then null; end $$;
+do $$ begin create type designer_approval_status as enum ('pending','approved','rejected'); exception when duplicate_object then null; end $$;
+alter table users add column if not exists account_status account_status not null default 'active';
+alter table users add column if not exists phone_verified_at timestamptz;
+alter table designer_profiles add column if not exists approval_status designer_approval_status not null default 'pending';
+alter table designer_profiles add column if not exists approval_note text;
+alter table designer_profiles add column if not exists submitted_at timestamptz;
+alter table designer_profiles add column if not exists approved_at timestamptz;
+alter table designer_profiles add column if not exists approved_by uuid references users(id);
+create table if not exists reports (
+  id uuid primary key default gen_random_uuid(), reporter_user_id uuid references users(id) on delete set null,
+  target_user_id uuid references users(id) on delete cascade, target_type text not null default 'designer',
+  reason text not null, detail text, status text not null default 'open', resolved_by uuid references users(id),
+  resolved_at timestamptz, created_at timestamptz not null default now()
+);
+create table if not exists blocked_users (
+  blocker_user_id uuid references users(id) on delete cascade, blocked_user_id uuid references users(id) on delete cascade,
+  created_at timestamptz not null default now(), primary key(blocker_user_id,blocked_user_id), check(blocker_user_id<>blocked_user_id)
+);
+create index if not exists idx_users_account_status on users(account_status,created_at desc);
+create index if not exists idx_designer_approval on designer_profiles(approval_status,onboarding_completed,updated_at desc);
+create index if not exists idx_reports_status on reports(status,created_at desc);

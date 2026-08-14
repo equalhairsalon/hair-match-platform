@@ -1,6 +1,6 @@
 export const BRAND = {
-  name: '髮媒',
-  english: 'HAIR MATCH',
-  tagline: '想整理頭髮的此刻，附近剛好有人有空。',
-  description: '把顧客此刻的美髮需求送到附近真正有空、也適合的設計師手上。',
+  name: '美業媒合',
+  english: 'BEAUTY MATCH',
+  tagline: '想變漂亮的此刻，附近剛好有人有空。',
+  description: '從美髮、美甲、美睫到美容美體，顧客免費發布需求，讓附近合適的專業服務者用時間、價格與作品主動回覆。',
 };
