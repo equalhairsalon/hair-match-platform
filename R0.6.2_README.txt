@@ -1,0 +1,12 @@
+R0.6.2 TypeScript build fix
+
+Fixes Vercel error in app/request/new/page.tsx:
+Argument of type 'string' is not assignable to ServiceCategoryKey state.
+
+Files:
+- app/request/new/page.tsx
+- app/api/health/route.ts (version only)
+- package.json (version only)
+
+No database migration required.
+No environment variable changes required.

@@ -1,4 +1,0 @@
-import { AdminPageHead } from '@/components/AdminShell';
-import { AdminCategoryManager } from '@/components/AdminCategoryManager';
-import { query } from '@/lib/server-db';
-export default async function Categories(){const r=await query(`select sc.id,sc.key,sc.label,sc.description,sc.is_active,sc.sort_order,count(distinct pc.user_id)::int providers,json_agg(json_build_object('key',i.key,'label',i.label,'active',i.is_active) order by i.sort_order) filter(where i.id is not null) items from service_categories sc left join service_catalog_items i on i.category_id=sc.id left join provider_categories pc on pc.category_id=sc.id group by sc.id order by sc.sort_order`);return <div><AdminPageHead eyebrow="SERVICE TAXONOMY" title="服務分類" description="顧客第一步先選大類，再看該類別已加入的平台服務者。R0.6 先開放美髮、美甲、美睫、美容／美體；最高管理員可以隨時關閉某個大類。"/><AdminCategoryManager categories={r.rows as any}/></div>}
